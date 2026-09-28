@@ -1,0 +1,93 @@
+{
+  "robot_path": "/tmp/robot-package",
+  "opciones": [
+    {
+      "option_type": "schedule",
+      "data_type": "string",
+      "name": "timezone",
+      "display_name": "timezone",
+      "value": "UTC",
+      "default": "UTC"
+    },
+    {
+      "option_type": "notification",
+      "data_type": "boolean",
+      "name": "notifications_enabled",
+      "display_name": "notifications_enabled",
+      "value": "",
+      "default": "false"
+    },
+    {
+      "option_type": "notification",
+      "data_type": "string",
+      "name": "notification_emails",
+      "display_name": "notification_emails",
+      "value": "",
+      "default": "notifications@example.test"
+    },
+    {
+      "option_type": "schedule",
+      "data_type": "string",
+      "name": "cron",
+      "display_name": "cron",
+      "value": "00 09 * * *",
+      "default": "Diario"
+    },
+    {
+      "option_type": "config_meta",
+      "data_type": "integer",
+      "name": "max_execution_time",
+      "display_name": "max_execution_time",
+      "value": "120",
+      "default": "300"
+    },
+    {
+      "option_type": "config_meta",
+      "data_type": "boolean",
+      "name": "auto_execute",
+      "display_name": "auto_execute",
+      "value": "",
+      "default": "false"
+    },
+    {
+      "option_type": "custom",
+      "data_type": "string",
+      "name": "CUSTOM_API_URL",
+      "display_name": "CUSTOM_API_URL",
+      "value": "https://service.example.test",
+      "default": "https://service.example.test"
+    },
+    {
+      "option_type": "custom",
+      "data_type": "string",
+      "name": "CUSTOM_API_TOKEN",
+      "display_name": "CUSTOM_API_TOKEN",
+      "value": "",
+      "default": ""
+    },
+    {
+      "option_type": "custom",
+      "data_type": "string",
+      "name": "ZIBLOH_API_URL",
+      "display_name": "ZIBLOH_API_URL",
+      "value": "",
+      "default": "https://devapp.zibloh.com"
+    },
+    {
+      "option_type": "custom",
+      "data_type": "string",
+      "name": "ZIBLOH_API_KEY",
+      "display_name": "ZIBLOH_API_KEY",
+      "value": "",
+      "default": ""
+    },
+    {
+      "option_type": "custom",
+      "data_type": "string",
+      "name": "ZIBLOH_AI_URL",
+      "display_name": "ZIBLOH_AI_URL",
+      "value": "",
+      "default": "https://ai.zibloh.com/api/v1"
+    }
+  ]
+}

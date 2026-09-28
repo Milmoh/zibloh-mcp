@@ -1,0 +1,1 @@
+# Playwright y Chromium ya vienen en la imagen del runner cloud: no los declares aquí.

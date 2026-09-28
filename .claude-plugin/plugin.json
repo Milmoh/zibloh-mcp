@@ -1,0 +1,16 @@
+{
+  "name": "zibloh",
+  "displayName": "Zibloh",
+  "version": "0.1.0",
+  "description": "Write, deploy, configure, run and debug Zibloh robots from Claude Code.",
+  "author": { "name": "Milmoh" },
+  "homepage": "https://zibloh.com",
+  "repository": "https://github.com/Milmoh/zibloh-mcp",
+  "keywords": ["zibloh", "rpa", "robots", "automation"],
+  "mcpServers": {
+    "zibloh": {
+      "command": "uvx",
+      "args": ["--from", "${CLAUDE_PLUGIN_ROOT}", "zibloh", "mcp"]
+    }
+  }
+}

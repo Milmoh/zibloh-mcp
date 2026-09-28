@@ -1,0 +1,9 @@
+requests==2.32.3
+# Solo si el robot escribe en el Datawarehouse (ver main_warehouse.py).
+# Mientras no este en PyPI: pip install ./zibloh-back-end/warehouse-sdk
+# zibloh-warehouse>=0.1.0
+
+# Solo si el robot usa la IA de Zibloh con el SDK (ver README, seccion "IA de Zibloh").
+# NO viene en la imagen del runner. Alternativa sin dependencias: requests contra /request.
+# Mientras no este en PyPI: pip install ./zibloh-portkey/sdk
+# zibloh-ai>=0.1.0

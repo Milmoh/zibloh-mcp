@@ -1,0 +1,12 @@
+{
+  "name": "zibloh",
+  "description": "Zibloh plugins for Claude Code",
+  "owner": { "name": "Milmoh" },
+  "plugins": [
+    {
+      "name": "zibloh",
+      "source": "./",
+      "description": "Write, deploy, configure, run and debug Zibloh robots from Claude Code."
+    }
+  ]
+}

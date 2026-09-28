@@ -1,0 +1,28 @@
+[project]
+name = "zibloh"
+version = "0.1.0"
+description = "Zibloh CLI and MCP server: build, deploy and run Zibloh robots from the terminal or Claude Code"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27,<1",
+    "typer>=0.12,<1",
+    "mcp>=2.2,<3",
+]
+
+[project.scripts]
+zibloh = "zibloh.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "respx>=0.21"]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zibloh"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
