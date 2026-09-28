@@ -35,6 +35,8 @@ Claude Code plugin:
 CLI only (needs [uv](https://docs.astral.sh/uv/)):
 
 ```bash
+uv tool install git+ssh://git@github.com/Milmoh/zibloh-mcp   # SSH key on GitHub
+# or, with HTTPS git credentials (gh auth setup-git):
 uv tool install git+https://github.com/Milmoh/zibloh-mcp
 ```
 
