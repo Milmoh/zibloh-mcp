@@ -35,7 +35,7 @@ zibloh login --env prod
 Not with the `!` prefix: `!` commands have no interactive terminal, so the hidden prompt cannot
 read the key. The login is saved to `~/.config/zibloh/credentials.json`, which the CLI and the
 MCP tools in this session then use. If the CLI is not installed yet:
-`uv tool install git+https://github.com/Milmoh/zibloh-mcp`.
+`uv tool install git+ssh://git@github.com/Milmoh/zibloh-mcp` (private repo: needs GitHub access).
 
 - `--env dev|prod` selects the environment (dev is Milmoh's test platform; customers use prod).
 - `--base-url URL` for a non-standard backend. `--profile NAME` stores the login under a name.
