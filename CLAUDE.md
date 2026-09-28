@@ -1,0 +1,20 @@
+# CLAUDE.md
+
+`zibloh` CLI, MCP server and Claude Code plugin for Zibloh self-serve robots. Context and the
+backend contract: `docs/CLI_MCP_PLAN.md` and `zibloh-back-end/docs/API.md` ("Self-serve API") in
+the workspace.
+
+- `src/zibloh/client.py` is the only HTTP code. It adds the audit headers (`X-Zibloh-Client`,
+  `-Tool`, `-Session`, `X-Request-Id`); presigned uploads go through `Client.upload()`, which never
+  sends the API key.
+- `src/zibloh/ops.py` holds every operation; `cli.py` (Typer) and `mcp_server.py` (mcp 2.x
+  `MCPServer`) are thin front ends over it. Add a feature to `ops.py`, then expose it in both,
+  named `zibloh <module> <action>` / tool `<module>_<action>`, with `--json` on every command.
+- Secret values never reach the model: MCP secret tools take only `from_env`/`from_file`; there is
+  no reveal anywhere. Keep it that way.
+- `src/zibloh/templates/` copies the robot template repo; `tests/test_packaging.py` checks that
+  the templates pass `validate` with no warnings.
+- Plugin: `.claude-plugin/plugin.json` (MCP server via `uvx --from ${CLAUDE_PLUGIN_ROOT}`),
+  `.claude-plugin/marketplace.json`, `skills/*/SKILL.md`.
+
+Tests: `uv venv && uv pip install -e . pytest respx && .venv/bin/pytest`.
