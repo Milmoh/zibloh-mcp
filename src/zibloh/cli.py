@@ -10,7 +10,7 @@ from typing import Any, Callable, List, Optional
 
 import typer
 
-from zibloh import __version__, config, ops
+from zibloh import __version__, browser_login, config, ops
 from zibloh.client import ApiError, Client
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Build, deploy and run Zibloh robots.")
@@ -127,30 +127,55 @@ def login(
     env: str = typer.Option(config.DEFAULT_ENV, "--env", help="prod or dev."),
     base_url: Optional[str] = typer.Option(None, "--base-url", help="Custom API base URL (overrides --env)."),
     profile: str = typer.Option(config.DEFAULT_PROFILE, "--profile"),
-    key: Optional[str] = typer.Option(None, "--key", help="Discouraged: ends up in shell history. Prefer the prompt or stdin."),
+    with_key: bool = typer.Option(False, "--with-key", help="Paste an existing API key (hidden prompt or stdin) instead of the browser. For CI and scripts."),
+    key: Optional[str] = typer.Option(None, "--key", help="Discouraged: ends up in shell history. Prefer --with-key."),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Only print the URL; do not try to open a browser."),
     json_out: bool = JsonOpt,
 ):
-    """Save an API key (Configuración de empresa → API Keys, permission "Robots", plus "MCP" for assistants)."""
+    """Log in through the browser: approve this computer in the Zibloh web app, no key to copy."""
+    resolved_base = None
     try:
-        if key is None:
-            key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass("Zibloh API key: ").strip()
-        if not key.startswith("zbl_"):
-            raise ops.OpError("That does not look like a Zibloh API key (zbl_…)")
-        candidate = config.Profile(name=profile, base_url=config.resolve_base_url(env, base_url), api_key=key, env=env)
-        c = Client(candidate, client_name="cli")
-        c.tool = "login"
-        try:
-            me = ops.whoami(c)
-        finally:
-            c.close()
-        config.save_profile(profile, key, env, base_url)
-    except (ApiError, ops.OpError, config.ConfigError) as exc:
+        resolved_base = config.resolve_base_url(env, base_url)
+        if key is not None or with_key:
+            me = _login_with_key(key, env, base_url, resolved_base, profile)
+        else:
+            me = _login_with_browser(env if not base_url else None, resolved_base, profile, no_browser, json_out)
+    except (ApiError, ops.OpError, config.ConfigError, browser_login.LoginFailed) as exc:
         _err(str(exc), json_out)
     _emit(me, json_out, lambda m: typer.echo(
         f"Logged in to {m['company_name']} ({m['base_url']}) as key '{m.get('api_key_name')}', profile '{profile}'."
         + ("" if m.get("self_serve") else "\nWarning: self-service is not enabled for this company; ask Zibloh to enable it.")
         + ("" if m.get("mcp_allowed") else "\nNote: this key has no MCP permission; the MCP tools (Claude Code plugin) will be refused.")
     ))
+
+
+def _whoami_with(candidate: config.Profile) -> dict:
+    c = Client(candidate, client_name="cli")
+    c.tool = "login"
+    try:
+        return ops.whoami(c)
+    finally:
+        c.close()
+
+
+def _login_with_key(key: Optional[str], env: str, base_url: Optional[str], resolved_base: str, profile: str) -> dict:
+    if key is None:
+        key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass("Zibloh API key: ").strip()
+    if not key.startswith("zbl_"):
+        raise ops.OpError("That does not look like a Zibloh API key (zbl_…)")
+    me = _whoami_with(config.Profile(name=profile, base_url=resolved_base, api_key=key, env=env))
+    config.save_profile(profile, key, env, base_url)
+    return me
+
+
+def _login_with_browser(env: Optional[str], resolved_base: str, profile: str, no_browser: bool, json_out: bool) -> dict:
+    pending = browser_login.start(resolved_base, env, client="cli")
+    opened = False if no_browser else browser_login.open_browser(pending.verification_url)
+    say = typer.echo if not json_out else (lambda msg: typer.echo(msg, err=True))
+    say(("Opened your browser at:" if opened else "Open this URL in your browser:") + f"\n\n    {pending.verification_url}\n")
+    say(f"Check that the page shows the code {pending.user_code} and click Autorizar. Waiting…")
+    browser_login.wait(pending, profile)
+    return _whoami_with(config.load_profile(profile))
 
 
 @app.command()

@@ -7,6 +7,8 @@ and nothing returns a value.
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional
 
@@ -14,12 +16,14 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 
-from zibloh import __version__, config, ops
+from zibloh import __version__, browser_login, config, ops
 from zibloh.client import ApiError, Client
 
 INSTRUCTIONS = """\
 Zibloh robots: write, deploy, configure, run and debug RPA robots for the user's company.
-Start with `whoami` to see the company and what this API key can do. Follow the
+Start with `whoami` to see the company and what this API key can do. If it says the user is
+not logged in, call `auth_login`, give the user the URL and code it returns, and after they
+approve in the browser call `auth_status`. Never ask the user for an API key. Follow the
 zibloh-workflow skill for the loop and zibloh-robot-authoring for the robot contract.
 Never ask the user to paste a secret value into the chat: ask them to run
 `zibloh secrets create NAME` in their own terminal, or use from_env/from_file.
@@ -69,6 +73,62 @@ def _secret_value(from_env: Optional[str], from_file: Optional[str]) -> bytes:
         return _path(from_file).read_bytes()
     except OSError as exc:
         raise ToolError(f"Cannot read {from_file}: {exc}") from exc
+
+
+# ── login ─────────────────────────────────────────────────────────────────────
+
+# One browser login at a time per server process. The poll runs in a thread so the
+# tool call returns at once with the URL; `auth_status` reports how it ended.
+_login_lock = threading.Lock()
+_login: dict[str, Any] = {"state": "none"}
+
+
+def _login_worker(pending: browser_login.Pending, profile: str) -> None:
+    try:
+        result = browser_login.wait(pending, profile)
+        state = {"state": "logged_in", **result}
+    except browser_login.LoginFailed as exc:
+        state = {"state": "failed", "error": str(exc)}
+    except Exception as exc:  # noqa: BLE001 - surface anything through auth_status
+        state = {"state": "failed", "error": f"{type(exc).__name__}: {exc}"}
+    with _login_lock:
+        if _login.get("device_code") == pending.device_code:
+            _login.clear()
+            _login.update(state)
+
+
+@server.tool(annotations=LOCAL)
+def auth_login(env: Literal["prod", "dev"] = "prod", profile: str = config.DEFAULT_PROFILE) -> dict[str, Any]:
+    """Log this computer in through the browser. Returns a URL and a code: show both to the user,
+    ask them to open the URL (it may already be open), check the code and click Autorizar, then
+    call auth_status. The API key goes straight to the local credentials file; it never passes
+    through the conversation. dev is Milmoh's test platform; customers use prod."""
+    try:
+        pending = browser_login.start(config.resolve_base_url(env), env, client="mcp")
+    except (browser_login.LoginFailed, config.ConfigError) as exc:
+        raise ToolError(str(exc)) from exc
+    with _login_lock:
+        _login.clear()
+        _login.update({"state": "pending", "device_code": pending.device_code, "user_code": pending.user_code,
+                       "verification_url": pending.verification_url, "profile": profile, "env": env})
+    threading.Thread(target=_login_worker, args=(pending, profile), daemon=True).start()
+    opened = browser_login.open_browser(pending.verification_url)
+    return {"verification_url": pending.verification_url, "user_code": pending.user_code,
+            "browser_opened": opened, "expires_in_seconds": int(pending.expires_at - time.monotonic()),
+            "next": "Ask the user to approve in the browser, then call auth_status."}
+
+
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def auth_status(wait_seconds: int = 0) -> dict[str, Any]:
+    """State of the last auth_login: pending, logged_in (with company and key name) or failed.
+    wait_seconds (max 120) waits for the approval before answering."""
+    deadline = time.monotonic() + max(0, min(wait_seconds, 120))
+    while True:
+        with _login_lock:
+            state = {k: v for k, v in _login.items() if k != "device_code"}
+        if state["state"] != "pending" or time.monotonic() >= deadline:
+            return state
+        time.sleep(1)
 
 
 # ── identity and launchers ────────────────────────────────────────────────────

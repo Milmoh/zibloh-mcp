@@ -40,7 +40,7 @@ class ApiError(Exception):
 
 
 _HINTS = {
-    401: " — the API key is invalid, revoked or expired; run `zibloh login` with a new key.",
+    401: " — the API key is invalid, revoked or expired; log in again with `zibloh login` (or the auth_login tool).",
     429: " — rate limited; wait a minute before retrying.",
 }
 

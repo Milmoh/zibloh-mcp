@@ -122,7 +122,8 @@ def load_profile(name: Optional[str] = None) -> Profile:
     api_key = os.environ.get("ZIBLOH_API_KEY") or stored.get("api_key")
     if not api_key:
         raise ConfigError(
-            "Not logged in. Run `zibloh login` in your terminal (or set ZIBLOH_API_KEY)."
+            "Not logged in. Run `zibloh login` (it opens the browser to approve this computer), "
+            "or from Claude Code use the auth_login tool."
         )
     env_override = os.environ.get("ZIBLOH_ENV")
     base_url = os.environ.get("ZIBLOH_BASE_URL") or (

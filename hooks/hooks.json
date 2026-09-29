@@ -1,0 +1,15 @@
+{
+  "description": "Stop Zibloh API keys (zbl_…) pasted into a prompt before Claude sees them.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if grep -qE 'zbl_[A-Za-z0-9_-]{20,}'; then echo 'That message contains a Zibloh API key (zbl_...), so it was not sent. Revoke that key in Configuración de empresa -> API Keys. You do not need keys here: ask Claude to log you in and approve it in the browser.' >&2; exit 2; fi; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
