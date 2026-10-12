@@ -60,6 +60,7 @@ CLOUD_IMAGE_MODULES = {
     "msal", "httpx", "httpcore", "anyio", "sniffio", "h11", "pydantic", "pydantic_core", "dateutil",
     "pytz", "tzdata", "six", "jwt", "PIL", "yaml", "et_xmlfile", "pyautogui", "jmespath",
     "typing_extensions", "packaging", "cryptography", "cffi", "greenlet", "attr", "attrs",
+    "zibloh_ai",
     # Helper module of the runner itself (zibloh-launcher-lambda/browser_runtime.py).
     "browser_runtime",
 }
@@ -71,7 +72,7 @@ CLOUD_IMAGE_DISTRIBUTIONS = {
     "google-auth-httplib2", "google-auth-oauthlib", "google-genai", "gspread", "oauth2client",
     "boto3", "imap-tools", "odoorpc", "openai", "pg8000", "python-dotenv", "requests", "sqlalchemy",
     "zstandard", "httpx", "numpy", "openpyxl", "pandas", "pdf2image", "pymupdf", "pypdf",
-    "playwright", "nuitka", "msal",
+    "playwright", "nuitka", "msal", "zibloh-ai",
 }
 
 

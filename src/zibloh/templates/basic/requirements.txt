@@ -3,7 +3,6 @@ requests==2.32.3
 # Mientras no este en PyPI: pip install ./zibloh-back-end/warehouse-sdk
 # zibloh-warehouse>=0.1.0
 
-# Solo si el robot usa la IA de Zibloh con el SDK (ver README, seccion "IA de Zibloh").
-# NO viene en la imagen del runner. Alternativa sin dependencias: requests contra /request.
-# Mientras no este en PyPI: pip install ./zibloh-portkey/sdk
-# zibloh-ai>=0.1.0
+# SDK de la IA de Zibloh. En PyPI; ya viene en la imagen del runner cloud, los launchers
+# lo instalan desde aqui. Si el robot no usa IA, puedes quitar la linea.
+zibloh-ai==0.2.0
