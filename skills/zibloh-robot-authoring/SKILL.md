@@ -118,7 +118,8 @@ Rules:
 - Cloud image (Python 3.12) includes: boto3, requests, httpx, pandas, numpy, openpyxl, pypdf,
   PyMuPDF (`fitz`), pdf2image (+poppler), opencv-python-headless (`cv2`), Pillow, playwright +
   Chromium headless, odoorpc, gspread, google-api-python-client, google-auth(-oauthlib),
-  google-genai, python-dotenv, imap_tools, openai, pg8000, SQLAlchemy, zstandard, msal. No
+  google-genai, python-dotenv, imap_tools, openai, pg8000, SQLAlchemy, zstandard, msal,
+  zibloh-ai (0.2.0). No
   tesseract binary, no GUI. Anything else: vendor pure-Python code in the zip (the package dir is
   on `PYTHONPATH`) or run on a launcher. `browser_runtime` (Lambda-safe `scrape_page`) is
   importable on cloud only.
@@ -127,6 +128,27 @@ Rules:
   `{"runtime_mode": "docker", "profile": "scraping"}`; ask the launcher admin whether that
   profile exists).
 - Do not ship `.venv/`, `__pycache__/`, browser profiles, credential files or large test data.
+
+## Zibloh AI (LLM calls)
+
+- Use the `zibloh_ai` SDK (PyPI `zibloh-ai`, in the cloud image; pin `zibloh-ai==0.2.0` in
+  `requirements.txt` for launchers). Read the key and URL with `get_option("ZIBLOH_API_KEY")` and
+  `get_option("ZIBLOH_AI_URL")` (both declared in the templates' `config.json`; the key is a
+  company API key `zbl_...` with the AI scope, stored as a secret, never in code):
+
+  ```python
+  from zibloh_ai import Zibloh, ZiblohError
+  client = Zibloh(api_key=get_option("ZIBLOH_API_KEY"), base_url=get_option("ZIBLOH_AI_URL"))
+  resp = client.request(model="medium", messages=[...], files=["factura.pdf"])
+  text = resp["choices"][0]["message"]["content"]
+  ```
+- `model` is a tier: `basic | medium | premium | eu` (embeddings: `basic | eu`). Provider model
+  names return 400. One endpoint, `POST /request` (chat, embeddings with `input`, OCR with
+  `document`); the official `openai` SDK does **not** work against it.
+- The SDK streams chat under the hood, so long answers survive the edge's 60 s cut. With raw
+  `requests`, send `"stream": true` for anything that may take over a minute.
+- When you send text you extracted yourself, declare the pages with `zibloh_pages=` (metering).
+  Fallback between providers happens in the router: catch `ZiblohError`, don't add retry loops.
 
 ## Naming
 
