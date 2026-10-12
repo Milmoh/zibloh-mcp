@@ -54,8 +54,7 @@ to run `! zibloh login` so they see the URL).
 - If the user pastes a key anyway (the plugin's hook blocks messages containing `zbl_…`, but it
   can arrive in other ways), tell them to revoke it in Configuración de empresa → API Keys, and
   log in with the browser instead.
-- If the CLI is not installed yet: `uv tool install git+ssh://git@github.com/Milmoh/zibloh-mcp`
-  (private repo: needs GitHub access).
+- If the CLI is not installed yet: `uv tool install zibloh` (or `pipx install zibloh`), from PyPI.
 
 ## 3. Check
 

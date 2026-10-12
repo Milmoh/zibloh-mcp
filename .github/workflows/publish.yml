@@ -1,0 +1,95 @@
+name: Publish CLI to PyPI
+
+# Publishes the `zibloh` CLI/MCP server on PyPI when a `vX.Y.Z` tag is pushed.
+# Trusted publishing (OIDC): PyPI trusts this workflow + the `pypi` environment
+# (which only accepts v* tags); no token is stored anywhere.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv venv && uv pip install -e . pytest respx
+      - run: .venv/bin/pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A published version is immutable: the tag, pyproject.toml, __version__ and
+      # the plugin manifest must agree before anything is uploaded.
+      - name: Check tag matches version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pyproject=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          module=$(python -c "exec(open('src/zibloh/__init__.py').read()); print(__version__)")
+          plugin=$(python -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          echo "tag=$tag pyproject=$pyproject __init__=$module plugin.json=$plugin"
+          for v in "$pyproject" "$module" "$plugin"; do
+            if [ "$v" != "$tag" ]; then
+              echo "::error::Tag v$tag does not match the package version"
+              exit 1
+            fi
+          done
+
+      - name: Build
+        run: |
+          pip install --upgrade build twine
+          python -m build
+          twine check --strict dist/*
+
+      # Only the zibloh package (with its robot templates) goes into the wheel.
+      - name: Check wheel contents
+        run: |
+          python -m zipfile -l dist/*.whl
+          python - <<'EOF'
+          import glob, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          bad = [n for n in names if not n.startswith(("zibloh/", "zibloh-"))]
+          if bad:
+              raise SystemExit(f"Unexpected files in the wheel: {bad}")
+          for needed in ("zibloh/templates/basic/main.py", "zibloh/templates/browser/main.py"):
+              if needed not in names:
+                  raise SystemExit(f"Missing from the wheel: {needed}")
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # Must match the PyPI trusted publisher (workflow publish.yml, environment pypi).
+    environment:
+      name: pypi
+      url: https://pypi.org/project/zibloh/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
