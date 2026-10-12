@@ -37,9 +37,6 @@ from Claude Code. The same package is:
 
 ## Install
 
-The repository is private for now: you need read access to `Milmoh/zibloh-mcp` and git
-credentials for GitHub (e.g. `gh auth setup-git`).
-
 Claude Code plugin:
 
 ```
@@ -47,13 +44,14 @@ Claude Code plugin:
 /plugin install zibloh@zibloh
 ```
 
-CLI only (needs [uv](https://docs.astral.sh/uv/)):
+CLI only (Python 3.11+; with [uv](https://docs.astral.sh/uv/) or pipx):
 
 ```bash
-uv tool install git+ssh://git@github.com/Milmoh/zibloh-mcp   # SSH key on GitHub
-# or, with HTTPS git credentials (gh auth setup-git):
-uv tool install git+https://github.com/Milmoh/zibloh-mcp
+uv tool install zibloh      # or: pipx install zibloh
+zibloh version
 ```
+
+Upgrade with `uv tool upgrade zibloh`.
 
 ## Log in
 
@@ -121,5 +119,13 @@ uv venv && uv pip install -e . pytest respx
 .venv/bin/pytest
 ```
 
+Releases: bump the version in `pyproject.toml`, `src/zibloh/__init__.py` and
+`.claude-plugin/plugin.json`, merge, then push a `vX.Y.Z` tag; `.github/workflows/publish.yml`
+publishes to PyPI with trusted publishing (environment `pypi`, no stored token).
+
 `src/zibloh/templates/` is a copy of `main.py`, `main_browser_template.py`, `config.json` and
 `requirements.txt` from the `zibloh-robot-template` repo; keep them in sync.
+
+## License
+
+Apache-2.0. See [LICENSE](https://github.com/Milmoh/zibloh-mcp/blob/main/LICENSE).

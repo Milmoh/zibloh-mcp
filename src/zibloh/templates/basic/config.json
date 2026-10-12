@@ -71,7 +71,7 @@
       "name": "ZIBLOH_API_URL",
       "display_name": "ZIBLOH_API_URL",
       "value": "",
-      "default": "https://devapp.zibloh.com"
+      "default": "https://app.zibloh.com"
     },
     {
       "option_type": "custom",
