@@ -49,9 +49,8 @@ SECRET_PATTERNS = [
 # Extensionless files that are fine to ship.
 EXTENSIONLESS_OK = {"LICENSE", "README", "NOTICE", "Makefile", "Dockerfile", "Procfile", "CHANGELOG"}
 
-# Import names available in the cloud runner image (zibloh-launcher-lambda
-# requirements.txt / smoke_test.py MANDATORY_IMPORTS), plus their transitive deps
-# robots commonly import directly.
+# Import names available in the Zibloh cloud runner image, plus the transitive
+# dependencies robots commonly import directly.
 CLOUD_IMAGE_MODULES = {
     "boto3", "botocore", "s3transfer", "requests", "urllib3", "certifi", "charset_normalizer", "idna",
     "pandas", "numpy", "openpyxl", "pypdf", "fitz", "pymupdf", "pdf2image", "cv2", "playwright",
@@ -61,12 +60,12 @@ CLOUD_IMAGE_MODULES = {
     "pytz", "tzdata", "six", "jwt", "PIL", "yaml", "et_xmlfile", "pyautogui", "jmespath",
     "typing_extensions", "packaging", "cryptography", "cffi", "greenlet", "attr", "attrs",
     "zibloh_ai",
-    # Helper module of the runner itself (zibloh-launcher-lambda/browser_runtime.py).
+    # Helper module shipped with the cloud runner (Lambda-safe browser helpers).
     "browser_runtime",
 }
 
 
-# pip distribution names installed in the cloud runner image (its requirements.txt).
+# pip distribution names installed in the cloud runner image.
 CLOUD_IMAGE_DISTRIBUTIONS = {
     "pyautogui", "opencv-python-headless", "google-api-python-client", "google-auth",
     "google-auth-httplib2", "google-auth-oauthlib", "google-genai", "gspread", "oauth2client",

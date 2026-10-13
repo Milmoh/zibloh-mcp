@@ -23,7 +23,7 @@ DEFAULT_TARGET_URL = "https://example.com/"
 DEFAULT_DEBUG_ARTIFACT_DIR = Path("/tmp/zibloh-robot-debug")
 DEFAULT_OUTPUT_DIR = BASE_DIR.parent / "output" if BASE_DIR.name == "package" else BASE_DIR / "output"
 OUTPUT_DIR = Path(os.getenv("ROBOT_OUTPUT_DIR", str(DEFAULT_OUTPUT_DIR)))
-# Ruta legacy concreta que la plataforma mantiene de momento: /tmp/app/output/mail.html
+# Ruta antigua que la plataforma todavia lee: /tmp/app/output/mail.html
 LEGACY_OUTPUT_DIR = Path("/tmp/app/output")
 processed_count = 0
 processed_count_detail: str | None = None
