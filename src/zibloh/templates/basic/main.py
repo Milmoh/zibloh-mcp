@@ -14,11 +14,11 @@ CONFIG_PATH = BASE_DIR / "config.json"
 ROBOT_ENV_JSON_PATH = BASE_DIR / "robot.env.json"
 DEFAULT_OUTPUT_DIR = BASE_DIR.parent / "output" if BASE_DIR.name == "package" else BASE_DIR / "output"
 OUTPUT_DIR = Path(os.getenv("ROBOT_OUTPUT_DIR", str(DEFAULT_OUTPUT_DIR)))
-# Ruta legacy concreta que la plataforma mantiene de momento: /tmp/app/output/mail.html
+# Ruta antigua que la plataforma todavia lee: /tmp/app/output/mail.html
 LEGACY_OUTPUT_DIR = Path("/tmp/app/output")
-# Solo el launcher local (Docker) monta esto: secretos de robot ya resueltos
-# por el backend (ver SECRETS_ARCHITECTURE_RFC.md). En Lambda no existe este
-# fichero — los secretos llegan directos como env vars/rutas de archivo.
+# Solo el launcher Linux (Docker) monta este fichero, con los secretos del robot
+# ya resueltos. En el runner cloud y en el launcher Windows no existe: los
+# secretos llegan como variables de entorno o rutas de archivo.
 SECRETS_PATH = BASE_DIR.parent / "secrets.json" if BASE_DIR.name == "package" else BASE_DIR / "secrets.json"
 SECRETS_FILE_DIR = Path("/tmp/zibloh-secrets")
 processed_count = 0
