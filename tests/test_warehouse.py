@@ -428,3 +428,21 @@ def test_cli_types_create_from_field_specs(logged_in):
 def test_cli_rejects_bad_json_cleanly(logged_in):
     out = CliRunner().invoke(cli.app, ["warehouse", "docs", "update", DOC, "--content", "{oops", "--json"])
     assert out.exit_code == 1 and "invalid JSON" in out.output
+
+
+@respx.mock
+@pytest.mark.parametrize("dest", ["new/", "new", "new/sub/"])
+def test_download_into_a_directory_that_does_not_exist_yet(client, tmp_path, dest):
+    respx.get(f"{WH}/objects/{DOC}/download").mock(return_value=httpx.Response(200, json={
+        "download_url": "https://s3.test/get", "filename": "F-1.pdf", "expires_in": 900}))
+    respx.get("https://s3.test/get").mock(return_value=httpx.Response(200, content=b"%PDF"))
+    result = warehouse.docs_download(client, DOC, f"{tmp_path}/{dest}")
+    assert result["path"].endswith("F-1.pdf") and (tmp_path / dest / "F-1.pdf").read_bytes() == b"%PDF"
+
+
+@respx.mock
+def test_download_to_a_file_path(client, tmp_path):
+    respx.get(f"{WH}/objects/{DOC}/download").mock(return_value=httpx.Response(200, json={
+        "download_url": "https://s3.test/get", "filename": "F-1.pdf", "expires_in": 900}))
+    respx.get("https://s3.test/get").mock(return_value=httpx.Response(200, content=b"%PDF"))
+    assert warehouse.docs_download(client, DOC, str(tmp_path / "copia.pdf"))["path"] == str(tmp_path / "copia.pdf")

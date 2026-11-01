@@ -733,10 +733,10 @@ def wh_docs_upload(ctx: typer.Context, document_id: str, file: Path, profile: Op
 
 
 @wh_docs_app.command("download")
-def wh_docs_download(ctx: typer.Context, document_id: str, dest: Path = typer.Argument(Path("."), help="Directory or file path."),
+def wh_docs_download(ctx: typer.Context, document_id: str, dest: str = typer.Argument(".", help="Directory (created if needed) or file path."),
                      profile: Optional[str] = ProfileOpt, json_out: bool = JsonOpt):
     """Download a document's file."""
-    _run(ctx, profile, json_out, lambda c: warehouse.docs_download(c, document_id, dest.expanduser()),
+    _run(ctx, profile, json_out, lambda c: warehouse.docs_download(c, document_id, dest),
          lambda r: typer.echo(f"{r['path']} ({r['bytes']} bytes)"))
 
 
@@ -772,14 +772,14 @@ def wh_docs_delete(ctx: typer.Context, document_id: str, yes: bool = YesOpt, pro
 
 @wh_docs_app.command("export")
 def wh_docs_export(ctx: typer.Context, type_ref: str = typer.Argument(..., metavar="TYPE"),
-                   dest: Path = typer.Argument(Path("."), help="Directory or file path."),
+                   dest: str = typer.Argument(".", help="Directory (created if needed) or file path."),
                    files: bool = typer.Option(False, "--files", help="A ZIP with the files instead of a CSV with the data."),
                    search: Optional[str] = typer.Option(None, "--search"), status: Optional[str] = typer.Option(None, "--status"),
                    filters: Optional[str] = FiltersOpt, archived: bool = typer.Option(False, "--archived"),
                    profile: Optional[str] = ProfileOpt, json_out: bool = JsonOpt):
     """Export a type's documents as CSV (data) or ZIP (files)."""
     _run(ctx, profile, json_out, lambda c: warehouse.docs_export(
-        c, type_ref, dest.expanduser(), what="files" if files else "csv", search=search, status=status,
+        c, type_ref, dest, what="files" if files else "csv", search=search, status=status,
         filters=_json_arg(filters, "--filters"), include_archived=archived),
          lambda r: typer.echo(f"{r['path']} ({r['bytes']} bytes)"))
 
