@@ -117,4 +117,4 @@ existing link instead of duplicating it. `warehouse_links_list(primary)` shows e
 | 403 on a decision "No eres responsable de este paso" | The logged-in person is not an approver of that step |
 | 409 "Documento aprobado: los datos están bloqueados" | Approved data can't change |
 | 422 "Faltan datos obligatorios" on start | Fill the listed fields with `warehouse_docs_update` |
-| Upload/download blocked by Claude's network allowlist | Also allow `zibloh-prod-warehouse-storage.s3.amazonaws.com` and `zibloh-prod-warehouse-storage.s3.eu-west-3.amazonaws.com` (`-dev-` for dev); see zibloh-setup |
+| Upload/download blocked by Claude's network allowlist | Files go through `app.zibloh.com/files/warehouse/…`: allow `app.zibloh.com` (zibloh-setup). A URL on `amazonaws.com` means the server is not routing files through the app domain yet: tell Zibloh |

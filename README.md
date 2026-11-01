@@ -34,9 +34,8 @@ the terminal or from Claude Code. The same package is:
 
    - **Company firewall / proxy**: allow outbound HTTPS to `app.zibloh.com`.
 
-   Robots need nothing else. Warehouse files are uploaded to and downloaded from storage
-   directly, so for them also allow `zibloh-prod-warehouse-storage.s3.amazonaws.com` and
-   `zibloh-prod-warehouse-storage.s3.eu-west-3.amazonaws.com`.
+   Nothing else is needed: robot code and Warehouse files are uploaded and downloaded through
+   the app domain too (no `amazonaws.com` domains).
 
 ## Install
 

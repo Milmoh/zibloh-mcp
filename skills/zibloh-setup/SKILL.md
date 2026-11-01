@@ -23,10 +23,8 @@ Claude cannot do these. Tell the user who has to do them:
      *Organization settings → Capabilities → Code execution* (additional allowed domains).
    - Claude Code with the sandbox on: add it to `sandbox.network.allowedDomains` in
      `~/.claude/settings.json`.
-   Do not try to route around the allowlist. Robots need no other domain (their uploads also
-   go to `app.zibloh.com`). Warehouse files go straight to storage: also allow
-   `zibloh-prod-warehouse-storage.s3.amazonaws.com` and
-   `zibloh-prod-warehouse-storage.s3.eu-west-3.amazonaws.com` (`-dev-` on dev).
+   Do not try to route around the allowlist. No other domain is needed: robot uploads and
+   Warehouse files also go through `app.zibloh.com`.
 
 Also outside Claude: creating a company, managing users or sharing robots, installing a launcher
 on a server and creating its licence (an admin with Autoservicio downloads the installer from
@@ -47,7 +45,7 @@ Then call `auth_status` with `wait_seconds: 120` (repeat while it says `pending`
 profile it names (one per company) and every tool uses it. `failed` says why (rejected, expired): start again with `auth_login`.
 
 The page asks two levels; suggest what the user's task needs (and *MCP* ticked, or the MCP
-tools are refused):
+tools are refused; it is ticked by default):
 - **Robots**: *Completo* to build and deploy, *Ejecución* to only run, *Lectura* to only look,
   *Sin acceso* for Warehouse-only use.
 - **Warehouse**: *Completo* to set up types, fields, folders and approval flows, *Documentos* to
