@@ -1,6 +1,6 @@
 ---
 name: zibloh-setup
-description: Connect Claude Code to a Zibloh company account. Use when the user wants to start using Zibloh from Claude, log in or out, switch between dev and prod or between profiles, check which company/API key is active (`zibloh whoami`), or when any zibloh command or MCP tool fails with 401/403, "not logged in", a missing scope, self_serve/robot_secrets disabled, or `blocked-by-allowlist` (Claude's network allowlist).
+description: Connect Claude Code to a Zibloh company account (robots and Warehouse). Use when the user wants to start using Zibloh from Claude, log in or out, switch between dev and prod or between profiles, check which company/API key is active (`zibloh whoami`), or when any zibloh command or MCP tool fails with 401/403, "not logged in", a missing scope, self_serve/robot_secrets disabled, or `blocked-by-allowlist` (Claude's network allowlist).
 ---
 
 # Zibloh setup
@@ -12,8 +12,9 @@ environment, with no API key ever shown to the user or passing through Claude's 
 
 Claude cannot do these. Tell the user who has to do them:
 
-1. **Feature flags** (a Zibloh superadmin, i.e. Milmoh staff): enable `self_serve` and `api_keys`
-   for the company, plus `robot_secrets` if robots will use platform secrets.
+1. **Feature flags** (a Zibloh superadmin, i.e. Milmoh staff): `api_keys` always; `self_serve`
+   for robots (plus `robot_secrets` if robots use platform secrets); `warehouse` for the
+   Warehouse (plus `warehouse_approvals` for approval flows).
 2. **A company admin** to approve the login in the browser (step 2). If the user is not an
    admin, an admin can open the same link and approve it.
 3. **Network access to `app.zibloh.com`** (`devapp.zibloh.com` for dev). If a call fails with
@@ -22,8 +23,8 @@ Claude cannot do these. Tell the user who has to do them:
      *Organization settings → Capabilities → Code execution* (additional allowed domains).
    - Claude Code with the sandbox on: add it to `sandbox.network.allowedDomains` in
      `~/.claude/settings.json`.
-   Do not try to route around the allowlist. No other domain is needed (uploads also go to
-   `app.zibloh.com`).
+   Do not try to route around the allowlist. No other domain is needed: robot uploads and
+   Warehouse files also go through `app.zibloh.com`.
 
 Also outside Claude: creating a company, managing users or sharing robots, installing a launcher
 on a server and creating its licence (an admin with Autoservicio downloads the installer from
@@ -43,8 +44,12 @@ Then call `auth_status` with `wait_seconds: 120` (repeat while it says `pending`
 10 minutes). `logged_in` means the key is saved in `~/.config/zibloh/credentials.json` as the
 profile it names (one per company) and every tool uses it. `failed` says why (rejected, expired): start again with `auth_login`.
 
-Level to suggest: *Completo* + *MCP* to build and deploy robots, *Ejecución* + *MCP* to only run
-them, *Lectura* + *MCP* to only look. Without *MCP* the MCP tools are refused.
+The page asks two levels; suggest what the user's task needs (and *MCP* ticked, or the MCP
+tools are refused; it is ticked by default):
+- **Robots**: *Completo* to build and deploy, *Ejecución* to only run, *Lectura* to only look,
+  *Sin acceso* for Warehouse-only use.
+- **Warehouse**: *Completo* to set up types, fields, folders and approval flows, *Documentos* to
+  upload, edit and approve documents, *Lectura* to only look and download, *Sin acceso*.
 
 Without the MCP tools (CLI only), run `zibloh login --env prod` yourself: it prints the same URL
 and code and waits until the user approves (up to 10 minutes; use a long timeout, or ask the user
@@ -60,7 +65,7 @@ to run `! zibloh login` so they see the URL).
 ## 3. Check
 
 Run `zibloh whoami --json` yourself. It shows company, key name, scopes, `capabilities`, and
-whether `self_serve` and `robot_secrets` are enabled. Confirm with the user that the company is
+whether `self_serve`, `robot_secrets`, `warehouse` and `warehouse_approvals` are enabled. Confirm with the user that the company is
 the expected one before creating or deploying anything. If `robot_secrets` is off, secrets
 commands will fail: stop and ask for the flag (step 1) rather than working around it.
 
@@ -90,10 +95,10 @@ Always read the `detail` field of the error (`--json` output) and quote it to th
 | 401 | Key revoked or expired; wrong env (dev login on prod) | Check env/profile; if still 401, `auth_login` again |
 | 403 missing scope | The level approved is too low for the action (e.g. Lectura trying to deploy) | `auth_login` again and approve a higher level |
 | 403 "no permite el uso por MCP" | Approved without **MCP** (`whoami` shows `mcp_allowed: false`) | `auth_login` again with MCP ticked, or use the CLI directly |
-| 403 on approving in the browser | The approver is not a company admin, or `self_serve`/`api_keys` is off | A company admin approves; ask Zibloh for the flags |
+| 403 on approving in the browser | The approver is not a company admin, or `api_keys` (or `self_serve`/`warehouse` for the level chosen) is off | A company admin approves; ask Zibloh for the flags |
 | `403` + `blocked-by-allowlist` | Claude's network allowlist, not Zibloh | Step 1.3 |
 | 403 self_serve / feature disabled | Flag off for the company | Ask a Zibloh superadmin to enable `self_serve` / `api_keys` / `robot_secrets` |
 | 404 on a robot or launcher id | Resource belongs to another company or profile | `zibloh whoami`; if it is the wrong company, `profiles_use` the right one |
 | Connection error | Wrong `--base-url` / `ZIBLOH_BASE_URL`, network, firewall | Unset the override or fix the URL; allow `app.zibloh.com` |
 
-Once `whoami` is correct, continue with the `zibloh-workflow` skill.
+Once `whoami` is correct, continue with the `zibloh-workflow` skill (robots) or `zibloh-warehouse` (documents).

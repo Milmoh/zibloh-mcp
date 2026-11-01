@@ -6,7 +6,7 @@
     {
       "name": "zibloh",
       "source": "./",
-      "description": "Write, deploy, configure, run and debug Zibloh robots from Claude Code."
+      "description": "Write, deploy, configure, run and debug Zibloh robots, and work with the Zibloh Warehouse, from Claude Code."
     }
   ]
 }
