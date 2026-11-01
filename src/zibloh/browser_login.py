@@ -4,8 +4,8 @@
    URL `<web>/cli-login?code=XXXX-XXXX`.
 2. The user opens it (we try to open the browser), checks the code and clicks Autorizar.
 3. `wait()` polls until the backend hands out the new API key, once, and saves it as a
-   profile. The key goes backend → this process → `credentials.json`: no human sees it,
-   so there is nothing to paste anywhere.
+   profile (named after the company unless the caller chose one). The key goes backend →
+   this process → `credentials.json`: no human sees it, so there is nothing to paste anywhere.
 """
 from __future__ import annotations
 
@@ -116,17 +116,20 @@ def poll_once(pending: Pending, transport: Optional[httpx.BaseTransport] = None)
     raise LoginFailed(f"{response.status_code} from the login: {response.text[:300]}")
 
 
-def save(pending: Pending, result: dict, profile: str) -> config.Profile:
-    return config.save_profile(profile, result["api_key"], pending.env,
-                               None if pending.env else pending.base_url)
+def save(pending: Pending, result: dict, profile: Optional[str]) -> config.Profile:
+    base_url = None if pending.env else pending.base_url
+    name = profile or config.profile_name_for(result.get("company_id"), result.get("company_name"), pending.env, base_url)
+    return config.save_profile(name, result["api_key"], pending.env, base_url,
+                               company_id=result.get("company_id"), company_name=result.get("company_name"))
 
 
-def wait(pending: Pending, profile: str, sleep: Callable[[float], None] = time.sleep,
+def wait(pending: Pending, profile: Optional[str] = None, sleep: Callable[[float], None] = time.sleep,
          transport: Optional[httpx.BaseTransport] = None) -> dict:
-    """Poll until approved; save the key under `profile`. Returns the payload without the key."""
+    """Poll until approved; save the key under `profile` (None: named after the company) and make
+    it the default. Returns the payload without the key, plus the profile name."""
     while True:
         result = poll_once(pending, transport)
         if result is not None:
-            save(pending, result, profile)
-            return {k: v for k, v in result.items() if k != "api_key"}
+            saved = save(pending, result, profile)
+            return {**{k: v for k, v in result.items() if k != "api_key"}, "profile": saved.name}
         sleep(pending.interval)

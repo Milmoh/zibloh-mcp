@@ -12,7 +12,10 @@ API key.
   named `zibloh <module> <action>` / tool `<module>_<action>`, with `--json` on every command.
 - Login is by browser (`browser_login.py`, device flow against `/cli-auth`): `zibloh login` and the
   MCP tools `auth_login`/`auth_status`. The key goes backend → `credentials.json`, never to the
-  model or the screen. `--with-key` is only for CI. `hooks/hooks.json` blocks prompts with `zbl_…`.
+  model or the screen. `--with-key` is only for CI. A key is for ONE company; each login is its
+  own profile named after the company (`config.profile_name_for`), and `zibloh profiles use` /
+  MCP `profiles_use` switch the default, so changing company never needs a new login.
+  `hooks/hooks.json` blocks prompts with `zbl_…`.
 - Secret values never reach the model: MCP secret tools take only `from_env`/`from_file`; there is
   no reveal anywhere. Keep it that way.
 - `src/zibloh/templates/` mirrors the official robot template; `tests/test_packaging.py` checks that

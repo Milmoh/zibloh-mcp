@@ -2,8 +2,13 @@
 
 Stored in `~/.config/zibloh/credentials.json` (or `$XDG_CONFIG_HOME/zibloh/`), mode 0600:
 
-    {"default_profile": "default",
-     "profiles": {"default": {"env": "prod", "base_url": "...", "api_key": "zbl_..."}}}
+    {"default_profile": "acme",
+     "profiles": {"acme": {"env": "prod", "base_url": "...", "api_key": "zbl_...",
+                           "company_id": "...", "company_name": "Acme"}}}
+
+A key belongs to ONE company, and a person can belong to several: each login saves its own
+profile, named after the company unless one is given (`profile_name_for`), so logging into
+another company never overwrites the previous one. `use_profile` switches the default.
 
 Environment variables win over the file: `ZIBLOH_API_KEY`, `ZIBLOH_BASE_URL`, `ZIBLOH_ENV`,
 `ZIBLOH_PROFILE`.
@@ -12,6 +17,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -81,10 +88,34 @@ def resolve_base_url(env: Optional[str] = None, base_url: Optional[str] = None) 
     return ENVIRONMENTS[env]
 
 
-def save_profile(name: str, api_key: str, env: Optional[str], base_url: Optional[str], make_default: bool = True) -> Profile:
+def _slug(value: str) -> str:
+    ascii_only = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_only.lower()).strip("-")[:40].strip("-")
+
+
+def profile_name_for(company_id: Optional[str], company_name: Optional[str], env: Optional[str],
+                     base_url: Optional[str]) -> str:
+    """Profile name for a login whose caller gave none: the profile already holding this company
+    on this API (so a re-login replaces its key), else the company's slug, `-dev` on dev."""
+    data = _read()
+    base = resolve_base_url(env, base_url)
+    for name, stored in data["profiles"].items():
+        if company_id and stored.get("company_id") == str(company_id) and stored.get("base_url") == base:
+            return name
+    name = _slug(company_name or "") or "company"
+    if env == "dev" and not base_url:
+        name += "-dev"
+    if name in data["profiles"]:  # another company (or API) with the same name
+        name = f"{name}-{str(company_id or '')[:8]}".rstrip("-")
+    return name
+
+
+def save_profile(name: str, api_key: str, env: Optional[str], base_url: Optional[str], make_default: bool = True,
+                 company_id: Optional[str] = None, company_name: Optional[str] = None) -> Profile:
     data = _read()
     profile = Profile(name=name, base_url=resolve_base_url(env, base_url), api_key=api_key, env=None if base_url else (env or DEFAULT_ENV))
-    data["profiles"][name] = {"env": profile.env, "base_url": profile.base_url, "api_key": profile.api_key}
+    data["profiles"][name] = {"env": profile.env, "base_url": profile.base_url, "api_key": profile.api_key,
+                              "company_id": str(company_id) if company_id else None, "company_name": company_name}
     if make_default or not data.get("default_profile"):
         data["default_profile"] = name
     _write(data)
@@ -102,12 +133,25 @@ def delete_profile(name: str) -> bool:
     return True
 
 
+def use_profile(name: str) -> None:
+    """Make `name` the default profile: the CLI and the MCP server use it from the next call."""
+    data = _read()
+    if name not in data["profiles"]:
+        known = ", ".join(sorted(data["profiles"])) or "none; run `zibloh login`"
+        raise ConfigError(f"No profile '{name}' (saved profiles: {known})")
+    data["default_profile"] = name
+    _write(data)
+
+
 def list_profiles() -> dict:
+    """Saved profiles without their keys (only a prefix to tell them apart)."""
     data = _read()
     return {
         "default_profile": data["default_profile"],
+        "active_profile": os.environ.get("ZIBLOH_PROFILE") or data["default_profile"],
         "profiles": {
-            name: {"env": p.get("env"), "base_url": p.get("base_url"), "key_prefix": (p.get("api_key") or "")[:12]}
+            name: {"company_name": p.get("company_name"), "company_id": p.get("company_id"), "env": p.get("env"),
+                   "base_url": p.get("base_url"), "key_prefix": (p.get("api_key") or "")[:12]}
             for name, p in data["profiles"].items()
         },
     }

@@ -21,6 +21,8 @@ executions_app = typer.Typer(no_args_is_help=True, help="Executions: status, log
 robot_secrets_app = typer.Typer(no_args_is_help=True, help="Secrets bound to a robot.")
 secrets_app = typer.Typer(no_args_is_help=True, help="Company secrets (values are never shown).")
 launchers_app = typer.Typer(no_args_is_help=True, help="Company launchers.")
+profiles_app = typer.Typer(no_args_is_help=True, help="Saved logins, one per company: list and switch.")
+app.add_typer(profiles_app, name="profiles")
 app.add_typer(robots_app, name="robots")
 app.add_typer(launchers_app, name="launchers")
 app.add_typer(secrets_app, name="secrets")
@@ -126,13 +128,15 @@ def login(
     ctx: typer.Context,
     env: str = typer.Option(config.DEFAULT_ENV, "--env", help="prod or dev."),
     base_url: Optional[str] = typer.Option(None, "--base-url", help="Custom API base URL (overrides --env)."),
-    profile: str = typer.Option(config.DEFAULT_PROFILE, "--profile"),
+    profile: Optional[str] = typer.Option(None, "--profile", help="Profile name (default: named after the company)."),
     with_key: bool = typer.Option(False, "--with-key", help="Paste an existing API key (hidden prompt or stdin) instead of the browser. For CI and scripts."),
     key: Optional[str] = typer.Option(None, "--key", help="Discouraged: ends up in shell history. Prefer --with-key."),
     no_browser: bool = typer.Option(False, "--no-browser", help="Only print the URL; do not try to open a browser."),
     json_out: bool = JsonOpt,
 ):
-    """Log in through the browser: approve this computer in the Zibloh web app, no key to copy."""
+    """Log in through the browser: approve this computer in the Zibloh web app, no key to copy.
+
+    Each company gets its own profile, so log in once per company and switch with `zibloh profiles use`."""
     resolved_base = None
     try:
         resolved_base = config.resolve_base_url(env, base_url)
@@ -143,7 +147,7 @@ def login(
     except (ApiError, ops.OpError, config.ConfigError, browser_login.LoginFailed) as exc:
         _err(str(exc), json_out)
     _emit(me, json_out, lambda m: typer.echo(
-        f"Logged in to {m['company_name']} ({m['base_url']}) as key '{m.get('api_key_name')}', profile '{profile}'."
+        f"Logged in to {m['company_name']} ({m['base_url']}) as key '{m.get('api_key_name')}', profile '{m['profile']}' (now the default)."
         + ("" if m.get("self_serve") else "\nWarning: self-service is not enabled for this company; ask Zibloh to enable it.")
         + ("" if m.get("mcp_allowed") else "\nNote: this key has no MCP permission; the MCP tools (Claude Code plugin) will be refused.")
     ))
@@ -158,29 +162,35 @@ def _whoami_with(candidate: config.Profile) -> dict:
         c.close()
 
 
-def _login_with_key(key: Optional[str], env: str, base_url: Optional[str], resolved_base: str, profile: str) -> dict:
+def _login_with_key(key: Optional[str], env: str, base_url: Optional[str], resolved_base: str, profile: Optional[str]) -> dict:
     if key is None:
         key = sys.stdin.readline().strip() if not sys.stdin.isatty() else getpass.getpass("Zibloh API key: ").strip()
     if not key.startswith("zbl_"):
         raise ops.OpError("That does not look like a Zibloh API key (zbl_…)")
-    me = _whoami_with(config.Profile(name=profile, base_url=resolved_base, api_key=key, env=env))
-    config.save_profile(profile, key, env, base_url)
-    return me
+    me = _whoami_with(config.Profile(name=profile or "", base_url=resolved_base, api_key=key, env=env))
+    name = profile or config.profile_name_for(me.get("company_id"), me.get("company_name"), env, base_url)
+    config.save_profile(name, key, env, base_url, company_id=me.get("company_id"), company_name=me.get("company_name"))
+    return {**me, "profile": name}
 
 
-def _login_with_browser(env: Optional[str], resolved_base: str, profile: str, no_browser: bool, json_out: bool) -> dict:
+def _login_with_browser(env: Optional[str], resolved_base: str, profile: Optional[str], no_browser: bool, json_out: bool) -> dict:
     pending = browser_login.start(resolved_base, env, client="cli")
     opened = False if no_browser else browser_login.open_browser(pending.verification_url)
     say = typer.echo if not json_out else (lambda msg: typer.echo(msg, err=True))
     say(("Opened your browser at:" if opened else "Open this URL in your browser:") + f"\n\n    {pending.verification_url}\n")
     say(f"Check that the page shows the code {pending.user_code} and click Autorizar. Waiting…")
-    browser_login.wait(pending, profile)
-    return _whoami_with(config.load_profile(profile))
+    result = browser_login.wait(pending, profile)
+    return _whoami_with(config.load_profile(result["profile"]))
 
 
 @app.command()
-def logout(profile: str = typer.Option(config.DEFAULT_PROFILE, "--profile"), json_out: bool = JsonOpt):
+def logout(profile: Optional[str] = typer.Option(None, "--profile", help="Profile to forget (default: the default one)."),
+           json_out: bool = JsonOpt):
     """Forget the saved key of a profile (revoke it in the web app if it leaked)."""
+    try:
+        profile = profile or config.list_profiles()["default_profile"]
+    except config.ConfigError as exc:
+        _err(str(exc), json_out)
     removed = config.delete_profile(profile)
     _emit({"profile": profile, "removed": removed}, json_out,
           lambda r: typer.echo(f"Removed profile '{profile}'." if r["removed"] else f"No profile '{profile}'."))
@@ -196,6 +206,33 @@ def whoami(ctx: typer.Context, profile: Optional[str] = ProfileOpt, json_out: bo
         typer.echo(f"self-service: {'on' if m['self_serve'] else 'OFF'}   robot secrets: {'on' if m['robot_secrets'] else 'OFF'}   mcp: {'allowed' if m.get('mcp_allowed') else 'NOT allowed'}")
         typer.echo(f"can:          {', '.join(m['capabilities']) or '(nothing)'}")
     _run(ctx, profile, json_out, ops.whoami, human)
+
+
+@profiles_app.command("list")
+def profiles_list(json_out: bool = JsonOpt):
+    """Saved profiles (one per company login) and which one is the default."""
+    def human(r):
+        if not r["profiles"]:
+            typer.echo("No profiles. Run `zibloh login`.")
+        for name, p in r["profiles"].items():
+            mark = "*" if name == r["active_profile"] else " "
+            typer.echo(f"{mark} {name:<24} {p.get('company_name') or '?':<30} {p.get('env') or p.get('base_url')}")
+    try:
+        _emit(config.list_profiles(), json_out, human)
+    except config.ConfigError as exc:
+        _err(str(exc), json_out)
+
+
+@profiles_app.command("use")
+def profiles_use(profile: str, json_out: bool = JsonOpt):
+    """Switch company: make PROFILE the default for the CLI and the MCP server. No new login."""
+    try:
+        config.use_profile(profile)
+        result = {"default_profile": profile, **config.list_profiles()["profiles"][profile]}
+    except config.ConfigError as exc:
+        _err(str(exc), json_out)
+    _emit(result, json_out, lambda r: typer.echo(f"Now using profile '{profile}' ({r.get('company_name') or r['base_url']})."
+                                                 + (" ZIBLOH_PROFILE is set and still wins." if os.environ.get("ZIBLOH_PROFILE") else "")))
 
 
 @app.command()
