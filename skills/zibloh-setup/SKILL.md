@@ -36,11 +36,12 @@ a `verification_url` and a `user_code` and tries to open the browser. Tell the u
 message:
 
 > Open <verification_url> (it may already be open), log in, check that it shows the code
-> **<user_code>**, choose the access level and click **Autorizar**.
+> **<user_code>** and the right **company** (change it there if you belong to several), choose
+> the access level and click **Autorizar**.
 
 Then call `auth_status` with `wait_seconds: 120` (repeat while it says `pending`; the code lasts
-10 minutes). `logged_in` means the key is saved in `~/.config/zibloh/credentials.json` and every
-tool uses it. `failed` says why (rejected, expired): start again with `auth_login`.
+10 minutes). `logged_in` means the key is saved in `~/.config/zibloh/credentials.json` as the
+profile it names (one per company) and every tool uses it. `failed` says why (rejected, expired): start again with `auth_login`.
 
 Level to suggest: *Completo* + *MCP* to build and deploy robots, *Ejecución* + *MCP* to only run
 them, *Lectura* + *MCP* to only look. Without *MCP* the MCP tools are refused.
@@ -63,15 +64,20 @@ whether `self_serve` and `robot_secrets` are enabled. Confirm with the user that
 the expected one before creating or deploying anything. If `robot_secrets` is off, secrets
 commands will fail: stop and ask for the flag (step 1) rather than working around it.
 
-## Environments and profiles
+## Companies, environments and profiles
 
-- One login per profile. Use profiles to keep dev and prod apart, e.g.
-  `auth_login` with `env: "dev", profile: "dev"` (CLI: `zibloh login --env dev --profile dev`).
-- Select per command with `--profile NAME` or per shell with `ZIBLOH_PROFILE=NAME`.
+- An API key belongs to ONE company, but a person can belong to several. Each login is saved as
+  its own profile, named after the company (`acme`, `acme-dev` on dev) and made the default;
+  other companies' profiles are kept.
+- To switch company: `profiles_list`, then `profiles_use` (CLI: `zibloh profiles list`,
+  `zibloh profiles use NAME`). No new login. Only call `auth_login` for a company that has no
+  profile yet (or whose key was revoked). After switching, say which company is now active.
+- Select per command with `--profile NAME` or per shell with `ZIBLOH_PROFILE=NAME` (it beats the
+  default, so `profiles_use` warns when it is set).
 - Environment variables override the stored login: `ZIBLOH_API_KEY`, `ZIBLOH_BASE_URL`,
   `ZIBLOH_PROFILE`. Useful in CI; never write their values into files you create or commit.
 - Before any write in prod (deploy, run, secrets), state which profile/env is active.
-- `zibloh logout` removes the stored key for the current profile (revoke it in the web app too
+- `zibloh logout [--profile NAME]` removes the stored key of that profile (default: the active one) (revoke it in the web app too
   if the computer is being retired).
 
 ## Troubleshooting
@@ -87,7 +93,7 @@ Always read the `detail` field of the error (`--json` output) and quote it to th
 | 403 on approving in the browser | The approver is not a company admin, or `self_serve`/`api_keys` is off | A company admin approves; ask Zibloh for the flags |
 | `403` + `blocked-by-allowlist` | Claude's network allowlist, not Zibloh | Step 1.3 |
 | 403 self_serve / feature disabled | Flag off for the company | Ask a Zibloh superadmin to enable `self_serve` / `api_keys` / `robot_secrets` |
-| 404 on a robot or launcher id | Resource belongs to another company or profile | `zibloh whoami`, then `zibloh robots list` / `launchers list` |
+| 404 on a robot or launcher id | Resource belongs to another company or profile | `zibloh whoami`; if it is the wrong company, `profiles_use` the right one |
 | Connection error | Wrong `--base-url` / `ZIBLOH_BASE_URL`, network, firewall | Unset the override or fix the URL; allow `app.zibloh.com` |
 
 Once `whoami` is correct, continue with the `zibloh-workflow` skill.

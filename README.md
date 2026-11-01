@@ -64,8 +64,9 @@ zibloh whoami
 ```
 
 Either way your browser opens at `app.zibloh.com/cli-login?code=XXXX-XXXX` (if it does not, open
-the URL shown). Log in, check that the code matches the one in your terminal or in Claude Code,
-choose what it may do (*Completo*, *Ejecución* or *Lectura*, and *MCP* for Claude Code) and
+the URL shown). Log in, check that the code matches the one in your terminal or in Claude Code
+and that the page shows the right company (switch it there if you belong to several), choose
+what it may do (*Completo*, *Ejecución* or *Lectura*, and *MCP* for Claude Code) and
 click **Autorizar**. The CLI then receives an API key for this computer, named
 `Claude Code · <computer>` or `CLI · <computer>`, and stores it in
 `~/.config/zibloh/credentials.json` (mode 0600). The key never appears on screen or in the chat;
@@ -74,7 +75,21 @@ admin.
 
 For CI and scripts that already have a key: `zibloh login --with-key < keyfile` (or the hidden
 prompt). `ZIBLOH_API_KEY`, `ZIBLOH_BASE_URL`, `ZIBLOH_ENV` and `ZIBLOH_PROFILE` override the
-stored login; `--profile` switches between saved logins.
+stored login.
+
+### Several companies
+
+A key belongs to one company. If you work for several, log in once per company: each login is
+saved as its own profile, named after the company (`-dev` on the dev platform), and becomes the
+default. Then switch without logging in again:
+
+```bash
+zibloh profiles list        # * marks the active one
+zibloh profiles use acme    # the CLI and Claude Code use it from now on
+zibloh whoami --profile beta  # one command against another company
+```
+
+From Claude Code, ask it to switch company: it calls `profiles_list` / `profiles_use`.
 
 The plugin also stops any prompt that contains a Zibloh API key (`zbl_…`) before Claude reads
 it. If that happens, revoke the key.

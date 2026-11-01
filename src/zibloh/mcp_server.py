@@ -23,7 +23,9 @@ INSTRUCTIONS = """\
 Zibloh robots: write, deploy, configure, run and debug RPA robots for the user's company.
 Start with `whoami` to see the company and what this API key can do. If it says the user is
 not logged in, call `auth_login`, give the user the URL and code it returns, and after they
-approve in the browser call `auth_status`. Never ask the user for an API key. Follow the
+approve in the browser call `auth_status`. Never ask the user for an API key.
+Each API key belongs to one company. To work on another company, `profiles_list` the saved
+logins and `profiles_use` one; only call `auth_login` for a company with no profile yet. Follow the
 zibloh-workflow skill for the loop and zibloh-robot-authoring for the robot contract.
 Never ask the user to paste a secret value into the chat: ask them to run
 `zibloh secrets create NAME` in their own terminal, or use from_env/from_file.
@@ -98,11 +100,13 @@ def _login_worker(pending: browser_login.Pending, profile: str) -> None:
 
 
 @server.tool(annotations=LOCAL)
-def auth_login(env: Literal["prod", "dev"] = "prod", profile: str = config.DEFAULT_PROFILE) -> dict[str, Any]:
+def auth_login(env: Literal["prod", "dev"] = "prod", profile: Optional[str] = None) -> dict[str, Any]:
     """Log this computer in through the browser. Returns a URL and a code: show both to the user,
-    ask them to open the URL (it may already be open), check the code and click Autorizar, then
-    call auth_status. The API key goes straight to the local credentials file; it never passes
-    through the conversation. dev is Milmoh's test platform; customers use prod."""
+    ask them to open the URL (it may already be open), check the code, pick the company and click
+    Autorizar, then call auth_status. The key is saved as its own profile (named after the
+    company unless `profile` is given) and becomes the default; other companies' profiles are kept.
+    The API key goes straight to the local credentials file; it never passes through the
+    conversation. dev is Milmoh's test platform; customers use prod."""
     try:
         pending = browser_login.start(config.resolve_base_url(env), env, client="mcp")
     except (browser_login.LoginFailed, config.ConfigError) as exc:
@@ -129,6 +133,30 @@ def auth_status(wait_seconds: int = 0) -> dict[str, Any]:
         if state["state"] != "pending" or time.monotonic() >= deadline:
             return state
         time.sleep(1)
+
+
+@server.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def profiles_list() -> dict[str, Any]:
+    """Saved logins on this computer, one per company (never their keys), and the active one."""
+    try:
+        return config.list_profiles()
+    except config.ConfigError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@server.tool(annotations=LOCAL)
+def profiles_use(profile: str) -> dict[str, Any]:
+    """Switch company without logging in again: make `profile` (from profiles_list) the default.
+    Every following tool call, and the CLI, use it. Tell the user which company is now active."""
+    try:
+        config.use_profile(profile)
+        profiles = config.list_profiles()
+    except config.ConfigError as exc:
+        raise ToolError(str(exc)) from exc
+    result = {"default_profile": profile, **profiles["profiles"][profile]}
+    if profiles["active_profile"] != profile:
+        result["warning"] = f"ZIBLOH_PROFILE={profiles['active_profile']} is set in this server's environment and still wins."
+    return result
 
 
 # ── identity and launchers ────────────────────────────────────────────────────
