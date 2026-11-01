@@ -640,7 +640,8 @@ def warehouse_approvals_inbox(flow_id: Optional[str] = None,
                               bucket: Literal["my_turn", "pending_other", "all"] = "my_turn",
                               state: Optional[Literal["pending", "approved", "rejected"]] = "pending",
                               limit: int = 50) -> dict[str, Any]:
-    """Documents in approval flows: my_turn = waiting for the logged-in person's decision."""
+    """Documents in approval flows: my_turn = waiting for the logged-in person's decision. It also
+    lists documents not sent to approval yet whose first step is theirs (no `approval` field)."""
     return _call("warehouse_approvals_inbox", lambda c: warehouse.approvals_inbox(
         c, flow_id, bucket=bucket, state=state, limit=limit))
 
