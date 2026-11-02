@@ -71,7 +71,7 @@ class Client:
         self._http.close()
         self._upload_http.close()
 
-    def _headers(self) -> dict:
+    def _headers(self, path: str = "") -> dict:
         headers = {
             "Authorization": f"Bearer {self.profile.api_key}",
             "User-Agent": f"zibloh/{__version__}",
@@ -81,13 +81,16 @@ class Client:
         }
         if self.tool:
             headers["X-Zibloh-Tool"] = self.tool[:100]
+        if path.startswith("/warehouse"):
+            # Backends before the CLI/MCP warehouse support only read the key from X-API-Key there.
+            headers["X-API-Key"] = self.profile.api_key
         return headers
 
     def request(self, method: str, path: str, *, json: Any = None, params: Optional[dict] = None,
                 files: Any = None, data: Any = None, allow_404: bool = False) -> Any:
         params = {k: v for k, v in (params or {}).items() if v is not None}
         try:
-            response = self._http.request(method, path, json=json, params=params, files=files, data=data, headers=self._headers())
+            response = self._http.request(method, path, json=json, params=params, files=files, data=data, headers=self._headers(path))
         except httpx.HTTPError as exc:
             raise ApiError(0, f"cannot reach {self.profile.base_url}: {exc}", method=method, path=path) from exc
         if response.status_code == 404 and allow_404:
@@ -135,3 +138,43 @@ class Client:
         if response.status_code >= 400:
             raise ApiError(response.status_code, response.text[:500], method="PUT", path="<presigned>")
         return response
+
+    def get_to_file(self, path: str, dest: Path, params: Optional[dict] = None) -> int:
+        """Stream an API GET (CSV/ZIP exports) to `dest`. Returns the bytes written."""
+        params = {k: v for k, v in (params or {}).items() if v is not None}
+        try:
+            with self._upload_http.stream("GET", f"{self.profile.base_url}{path}", params=params,
+                                          headers=self._headers(path)) as response:
+                if response.status_code >= 400:
+                    response.read()
+                    try:
+                        detail = response.json().get("detail", response.text)
+                    except ValueError:
+                        detail = response.text[:500]
+                    raise ApiError(response.status_code, detail, response.headers.get("x-request-id"), "GET", path)
+                return _write_stream(response, dest)
+        except httpx.HTTPError as exc:
+            raise ApiError(0, f"cannot reach {self.profile.base_url}: {exc}", method="GET", path=path) from exc
+
+    def download(self, url: str, dest: Path) -> int:
+        """GET a presigned URL into `dest`. No Authorization header: the URL is the credential."""
+        try:
+            with self._upload_http.stream("GET", url) as response:
+                if response.status_code >= 400:
+                    response.read()
+                    raise ApiError(response.status_code, response.text[:500], method="GET", path="<presigned>")
+                return _write_stream(response, dest)
+        except httpx.HTTPError as exc:
+            raise ApiError(0, f"download failed: {exc}", method="GET", path="<presigned>") from exc
+
+
+def _write_stream(response: httpx.Response, dest: Path) -> int:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    partial = dest.with_name(dest.name + ".part")
+    written = 0
+    with partial.open("wb") as fh:
+        for chunk in response.iter_bytes():
+            fh.write(chunk)
+            written += len(chunk)
+    partial.replace(dest)
+    return written
