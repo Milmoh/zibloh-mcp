@@ -442,10 +442,19 @@ def docs_upload(c: Client, document_id: str, file: Path) -> dict:
     return _doc_summary(_upload(c, document_id, file))
 
 
-def docs_download(c: Client, document_id: str, dest: Path) -> dict:
-    """Save the document's file. `dest` is a directory (the original file name is kept) or a file path."""
+def _as_dir(dest: str | Path) -> bool:
+    """A destination is a directory if it is one, ends with a separator or has no extension
+    (`Path` drops a trailing slash, so the raw string is checked)."""
+    raw = str(dest)
+    return Path(raw).expanduser().is_dir() or raw.endswith(("/", "\\")) or not Path(raw).suffix
+
+
+def docs_download(c: Client, document_id: str, dest: str | Path) -> dict:
+    """Save the document's file. `dest` is a directory (created if needed; the original file
+    name is kept) or a file path."""
     info = c.get(f"{WH}/objects/{document_id}/download")
-    target = dest / info["filename"] if dest.is_dir() or str(dest).endswith(("/", "\\")) else dest
+    base = Path(dest).expanduser().resolve()
+    target = base / info["filename"] if _as_dir(dest) else base
     size = c.download(info["download_url"], target)
     return {"document_id": document_id, "path": str(target), "bytes": size}
 
@@ -482,7 +491,7 @@ def docs_delete(c: Client, document_id: str) -> dict:
     return {"document_id": document_id, "deleted": True}
 
 
-def docs_export(c: Client, type_ref: str, dest: Path, *, what: str = "csv", search: Optional[str] = None,
+def docs_export(c: Client, type_ref: str, dest: str | Path, *, what: str = "csv", search: Optional[str] = None,
                 status: Optional[str] = None, filters: Optional[Any] = None, include_archived: bool = False) -> dict:
     """`what="csv"`: the documents' data as CSV; `what="files"`: a ZIP of their files (max 500)."""
     if what not in ("csv", "files"):
@@ -494,8 +503,10 @@ def docs_export(c: Client, type_ref: str, dest: Path, *, what: str = "csv", sear
         params["unified_status"] = status
     elif status:
         params["status"] = status
-    if dest.is_dir():
-        dest = dest / f"{schema['name']}.{'csv' if what == 'csv' else 'zip'}"
+    target = Path(dest).expanduser().resolve()
+    if _as_dir(dest):
+        target = target / f"{schema['name']}.{'csv' if what == 'csv' else 'zip'}"
+    dest = target
     size = c.get_to_file(f"{WH}/objects/{'export' if what == 'csv' else 'export-files'}", dest, params)
     return {"type": schema["name"], "path": str(dest), "bytes": size}
 

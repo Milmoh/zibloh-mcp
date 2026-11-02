@@ -522,7 +522,7 @@ def warehouse_docs_upload(document_id: str, file: str) -> dict[str, Any]:
 def warehouse_docs_download(document_id: str, dest: str) -> dict[str, Any]:
     """Save a document's file locally: dest is a directory (keeps the original name) or a file path.
     Returns the path; read the file from there if its content is needed."""
-    return _call("warehouse_docs_download", lambda c: warehouse.docs_download(c, document_id, _path(dest)))
+    return _call("warehouse_docs_download", lambda c: warehouse.docs_download(c, document_id, dest))
 
 
 @server.tool(annotations=WRITE)
@@ -555,7 +555,7 @@ def warehouse_docs_export(type: str, dest: str, what: Literal["csv", "files"] = 
     what=csv saves their data as CSV, what=files a ZIP with their files (max 500). dest is a
     directory or a file path."""
     return _call("warehouse_docs_export", lambda c: warehouse.docs_export(
-        c, type, _path(dest), what=what, search=search, status=status, filters=filters,
+        c, type, dest, what=what, search=search, status=status, filters=filters,
         include_archived=include_archived))
 
 
