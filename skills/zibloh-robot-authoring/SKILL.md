@@ -20,11 +20,11 @@ Start from them instead of rewriting helpers. For Datawarehouse robots, the temp
 |---|---|---|---|
 | Time limit | `max_execution_time` min, hard cap 10 min (default 10) | 30 min default, `max_execution_time` overrides (1 h fallback watchdog) | `max_execution_time`, capped by launcher (default 600 s) |
 | Dependencies | Image only + vendored pure-Python code. No pip at runtime | venv per robot, `pip install -r requirements.txt` on each new version | `pip install -r requirements.txt` on every run (image is plain Python) |
-| Package dir | `/tmp/robot-run-<id>/package` | launcher userData `robots/<robot_id>/` (CWD) | `/app/package`, read-only |
+| Package dir | `/tmp/robot-run-<id>/package` | launcher userData `robots/<robot_id>/` (CWD) | `/app/package` (per-run writable copy since 0.0.38; read-only before) |
 | Scratch | `/tmp` (wiped per run) | `temp/` in robot dir or system temp | `/tmp` tmpfs; rootfs read-only |
-| Persistence | Data files in package dir saved as state (rules below) | Robot dir stays on disk | None between runs |
-| Secrets | env vars / files injected directly | env vars / files injected directly | `/app/secrets.json`, applied by `load_secrets()` |
-| Final status | exit code + last status JSON + log heuristics | exit code + last status JSON | exit code only |
+| Persistence | Data files in package dir saved as state (rules below) | Robot dir stays on disk | Since 0.0.38: data files in package dir kept on the host, same rules as cloud. Older launchers: none |
+| Secrets | env vars / files injected directly | env vars / files injected directly | Since 0.0.38: env vars / files injected by a bootstrap. `/app/secrets.json` still mounted (older launchers need `load_secrets()`) |
+| Final status | exit code + last status JSON + log heuristics | exit code + last status JSON | Since 0.0.38: exit code + last status JSON (explicit `"error"` fails even with exit 0). Older: exit code only |
 
 The same code must work on all three: always emit the final JSON line **and** exit non-zero on
 failure.
@@ -38,8 +38,8 @@ failure.
   `max_execution_time` in minutes, `auto_execute`).
 - At run time every runner **overwrites** `config.json` with the platform's options, so the
   zipped values are only local-dev defaults. Values set with `options set` win.
-- Resolution in `get_option(name)`: `ROBOT_PARAMS_JSON` (typed dict, set by cloud and Windows;
-  absent on Linux) → `config.json` `opciones` (`value`, else `default`; always strings) → default.
+- Resolution in `get_option(name)`: `ROBOT_PARAMS_JSON` (typed dict, set by all three runners;
+  Linux since launcher 0.0.38) → `config.json` `opciones` (`value`, else `default`; always strings) → default.
 - Therefore **normalize types yourself**: the same option can arrive as `True` or `"true"`,
   `5` or `"5"`. Use helpers like `opt_bool`/`opt_int` in the skeleton.
 - Always add two safety options: `TEST_MODE` (boolean, default `true`: read-only, small batch, no
@@ -51,9 +51,9 @@ failure.
 
 - Never hardcode credentials, and never put them in `config.json`, options, `robot.env.json`, a
   zipped `.env` or code. The platform injects bound secrets.
-- Call `load_secrets()` first thing in `main()`. On Linux it reads `/app/secrets.json` and sets
-  the env vars / writes files to `/tmp/zibloh-secrets/`; on cloud and Windows the file does not
-  exist and it is a no-op (values are already injected).
+- Call `load_secrets()` first thing in `main()`. Every runner already injects the secrets (Linux
+  since launcher 0.0.38); on older Linux launchers it reads `/app/secrets.json` and sets the env
+  vars / writes files to `/tmp/zibloh-secrets/`. Elsewhere it is harmless (values already set).
 - `expose_as env`: `os.environ["<target_env_name>"]` holds the value.
 - `expose_as file`: `os.environ["<target_env_name>"]` holds the **path** of a temp file
   (named `mount_filename`, default the env name lowercased) with the decoded content. Open it by
@@ -92,7 +92,7 @@ Rules:
 ## Reports and email (mail.html)
 
 - Write the HTML report to `$ROBOT_OUTPUT_DIR/mail.html` and also `/tmp/app/output/mail.html`
-  (`write_mail_artifact()` does both). When `ROBOT_OUTPUT_DIR` is unset (Linux), the template
+  (`write_mail_artifact()` does both). When `ROBOT_OUTPUT_DIR` is unset (Linux launchers before 0.0.38), the template
   falls back to `/app/output`. On Windows, `config.json` also has `report_path`: if set, write the
   same HTML there too; never fail if it is not writable.
 - If the platform sends notifications (`robot_handles_notifications=false`), it emails
@@ -109,8 +109,9 @@ Rules:
   `requirements.txt`, hidden files/dirs, `__pycache__/`, `output/`, `.venv/`. Deletions do not
   propagate (overwrite with empty state instead). Max 50 MB zipped. Cancelled runs save nothing.
 - Windows: the robot dir persists; a new deploy extracts over it.
-- Linux: nothing persists. A robot that needs state between runs must keep it externally or
-  run on cloud/Windows.
+- Linux (launcher 0.0.38+): same rules as cloud, kept on the launcher host per robot
+  (`STATE_ROOT`), saved after success or failure, not after cancel. Older Linux launchers persist
+  nothing: if the robot may run there, keep state externally.
 - Scratch files always go to `/tmp` (or `tempfile`), never next to the code.
 
 ## Dependencies
@@ -158,7 +159,7 @@ Rules:
   `OBJECT_STORAGE_ACCESS_KEY_ID`, `ERP_URL`, `SMTP_USER`, `SERVICE_X_TOKEN`.
 - For S3-compatible storage pass credentials and `endpoint_url` explicitly to the boto3 client.
 - Runner vars you may read: `ROBOT_EXECUTION_ID` (all), `ROBOT_ID`, `ROBOT_COMPANY_ID`,
-  `ROBOT_PACKAGE_DIR`, `ROBOT_OUTPUT_DIR`, `ROBOT_PARAMS_JSON` (cloud, Windows),
+  `ROBOT_PACKAGE_DIR`, `ROBOT_OUTPUT_DIR`, `ROBOT_PARAMS_JSON` (all; Linux since 0.0.38),
   `ROBOT_USER_ID`, `ROBOT_DEBUG_ARTIFACT_DIR`, `ROBOT_EVENT_JSON`, `ROBOT_AWS_REQUEST_ID` (cloud).
   Always provide fallbacks.
 
