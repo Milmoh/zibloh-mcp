@@ -224,9 +224,11 @@ def robots_validate(directory: str, target: Optional[Literal["cloud", "onprem"]]
 
 
 @server.tool(annotations=WRITE)
-def robots_deploy(robot_id: str, directory: str) -> dict[str, Any]:
-    """Validate, zip and upload the robot's code; activates the robot. Fails if validation has errors."""
-    return _call("robots_deploy", lambda c: ops.robots_deploy(c, robot_id, _path(directory)))
+def robots_deploy(robot_id: str, directory: str, note: str) -> dict[str, Any]:
+    """Validate, zip and upload the robot's code; activates the robot. Fails if validation has errors.
+    `note` is required: what changes in this version and why (at least 10 characters). It is kept in the robot's
+    deploy history and Zibloh Know reads it, so write it for a person, not a commit hash."""
+    return _call("robots_deploy", lambda c: ops.robots_deploy(c, robot_id, _path(directory), note))
 
 
 @server.tool(annotations=READ)

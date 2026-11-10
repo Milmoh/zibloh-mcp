@@ -140,7 +140,15 @@ def _target_kind(robot: dict) -> Optional[str]:
     return "cloud" if tipology == "cloud" else "onprem"
 
 
-def robots_deploy(c: Client, robot_id: str, directory: Path, progress: Callable[[str], None] = lambda _: None) -> dict:
+DEPLOY_NOTE_MIN = 10
+
+
+def robots_deploy(c: Client, robot_id: str, directory: Path, note: str,
+                  progress: Callable[[str], None] = lambda _: None) -> dict:
+    """`note` is required: what changes in this version and why (kept in the robot's deploy history, read by Know)."""
+    note = (note or "").strip()
+    if len(note) < DEPLOY_NOTE_MIN:
+        raise OpError(f"--note is required: say what changes in this version and why (at least {DEPLOY_NOTE_MIN} characters)")
     robot = robots_get(c, robot_id)
     report = packaging.validate(directory, _target_kind(robot))
     if not report.ok:
@@ -148,7 +156,7 @@ def robots_deploy(c: Client, robot_id: str, directory: Path, progress: Callable[
     package = packaging.build_zip(directory)
     progress(f"packaged {package.files} files, {package.size / 1e6:.1f} MB, sha256 {package.sha256[:12]}…")
     try:
-        audit = {"sha256": package.sha256, "validation_warnings": report.warnings[:50]}
+        audit = {"sha256": package.sha256, "validation_warnings": report.warnings[:50], "note": note}
         if package.size <= MULTIPART_THRESHOLD:
             result = _upload_single(c, robot_id, package, audit)
         else:

@@ -108,7 +108,7 @@ zibloh robots create --name "Facturas proveedor"       # once; note the robot_id
 zibloh robots target <robot_id> --cloud                # or --launcher <launcher_id>
 zibloh secrets create ERP_PASSWORD                     # hidden prompt
 zibloh robots secrets bind <robot_id> ERP_PASSWORD
-zibloh robots deploy <robot_id> ./my-robot
+zibloh robots deploy <robot_id> ./my-robot --note "Fix date parsing for US invoices"   # --note is required
 zibloh robots options define <robot_id> --from-config ./my-robot/config.json
 zibloh robots options set <robot_id> test_mode=true
 zibloh robots run <robot_id> --wait

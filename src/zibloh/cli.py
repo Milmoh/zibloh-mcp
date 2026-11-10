@@ -351,13 +351,15 @@ def robots_validate(directory: Path, target: Optional[str] = typer.Option(None, 
 
 
 @robots_app.command("deploy")
-def robots_deploy(ctx: typer.Context, robot_id: str, directory: Path, profile: Optional[str] = ProfileOpt, json_out: bool = JsonOpt):
-    """Validate, zip and upload the robot code (activates the robot)."""
+def robots_deploy(ctx: typer.Context, robot_id: str, directory: Path,
+                  note: str = typer.Option(..., "--note", "-m", help="Why this version is uploaded (required; Know reads it)."),
+                  profile: Optional[str] = ProfileOpt, json_out: bool = JsonOpt):
+    """Validate, zip and upload the robot code (activates the robot). --note is required."""
     def human(r):
         for w in r["warnings"]:
             typer.secho(f"warning: {w}", fg=typer.colors.YELLOW)
         typer.echo(f"Deployed {r['robot_name']} ({r['files']} files, {r['size'] / 1e6:.1f} MB, sha256 {r['sha256'][:12]}…)")
-    _run(ctx, profile, json_out, lambda c: ops.robots_deploy(c, robot_id, directory, _progress(json_out)), human)
+    _run(ctx, profile, json_out, lambda c: ops.robots_deploy(c, robot_id, directory, note, _progress(json_out)), human)
 
 
 @robots_app.command("run")

@@ -54,13 +54,21 @@ def test_deploy_uploads_without_the_api_key_and_reports_the_hash(client, tmp_pat
     complete = respx.post(f"{BASE}/automate/robots/{ROBOT}/upload/complete").mock(return_value=httpx.Response(200, json={
         "robot_name": "R", "file_hash": "f1"}))
 
-    result = ops.robots_deploy(client, ROBOT, _robot_dir(tmp_path))
+    result = ops.robots_deploy(client, ROBOT, _robot_dir(tmp_path), "Fix date parsing for US invoices")
 
     assert "authorization" not in put.calls.last.request.headers
     assert put.calls.last.request.headers["content-type"] == "application/zip"
     body = json.loads(complete.calls.last.request.content)
     assert body["sha256"] == result["sha256"] and body["file_size_bytes"] == result["size"]
+    assert body["note"] == "Fix date parsing for US invoices"
     assert result["file_id"] == "f1"
+
+
+def test_deploy_requires_a_note(client, tmp_path):
+    with pytest.raises(ops.OpError, match="--note"):
+        ops.robots_deploy(client, ROBOT, _robot_dir(tmp_path), "  ")
+    with pytest.raises(ops.OpError, match="--note"):
+        ops.robots_deploy(client, ROBOT, _robot_dir(tmp_path), "fix")
 
 
 def test_deploy_refuses_invalid_packages(client, tmp_path):
@@ -69,7 +77,7 @@ def test_deploy_refuses_invalid_packages(client, tmp_path):
     with respx.mock:
         respx.get(f"{BASE}/automate/robots/{ROBOT}").mock(return_value=httpx.Response(200, json={"robot_id": ROBOT}))
         with pytest.raises(ops.OpError, match="credentials file"):
-            ops.robots_deploy(client, ROBOT, tmp_path)
+            ops.robots_deploy(client, ROBOT, tmp_path, "A real note for this deploy")
 
 
 @respx.mock
