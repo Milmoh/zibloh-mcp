@@ -49,8 +49,8 @@ To write the robot code itself, use the `zibloh-robot-authoring` skill.
    the options (rerun when you add or rename one). Set values with
    `zibloh robots options set <id> TEST_MODE=true MAX_ITEMS=5`, check with `options list <id>`.
    Set `max_execution_time` (minutes) within the runner's limit. Schedules (`cron`,
-   `auto_execute`) are set by the user in the web app. Optionally record value with
-   `zibloh robots metrics set <id> ...` (minutes / euros saved per run).
+   `auto_execute`) are set by the user in the web app. The minutes / euros saved per run
+   are configured by Zibloh in the Backoffice; `zibloh robots metrics get <id>` only reads them.
 10. **Run.** `zibloh robots run <id> --wait --timeout 900 --tail 50` launches, waits for a
     terminal status and prints the log tail. Without `--wait`, poll
     `zibloh robots executions get <exec_id>`.

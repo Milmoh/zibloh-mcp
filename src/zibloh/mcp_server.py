@@ -260,11 +260,7 @@ def robots_metrics_get(robot_id: str) -> list[dict[str, Any]]:
     return _call("robots_metrics_get", lambda c: ops.metrics_get(c, robot_id))
 
 
-@server.tool(annotations=WRITE)
-def robots_metrics_set(robot_id: str, minutes: Optional[float] = None, euros: Optional[float] = None,
-                       scope: Literal["execution", "process"] = "execution") -> dict[str, Any]:
-    """Minutes and/or euros saved per run (scope=execution) or per processed unit (scope=process)."""
-    return _call("robots_metrics_set", lambda c: ops.metrics_set(c, robot_id, minutes, euros, scope))
+# No robots_metrics_set: metrics are configured by Zibloh in the Backoffice.
 
 
 # ── executions ────────────────────────────────────────────────────────────────

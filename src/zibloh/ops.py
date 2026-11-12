@@ -277,29 +277,7 @@ def metrics_get(c: Client, robot_id: str) -> list:
     return c.get(f"/robotMetrics/robots/{robot_id}")
 
 
-def metrics_set(c: Client, robot_id: str, minutes: Optional[float] = None, euros: Optional[float] = None,
-                scope: str = "execution") -> dict:
-    """Minutes and/or euros saved per execution (scope=execution) or per processed unit (scope=process)."""
-    if minutes is None and euros is None:
-        raise OpError("Pass --minutes and/or --euros")
-    if scope not in ("execution", "process"):
-        raise OpError("scope must be 'execution' or 'process'")
-    wanted = {"minutes": minutes, "euros": euros}
-    current = {m["metric_type"]: m for m in metrics_get(c, robot_id)}
-    creates, updates = [], []
-    for base, value in wanted.items():
-        if value is None:
-            continue
-        metric_type = base if scope == "execution" else f"{base}_process"
-        if metric_type in current:
-            updates.append({"robot_metrics_id": current[metric_type]["robot_metrics_id"], "value": str(value)})
-        else:
-            creates.append({"metric_type": base, "metric_scope": scope, "name": metric_type, "value": str(value), "default": "0"})
-    if creates:
-        c.post(f"/robotMetrics/robots/{robot_id}", json={"metrics": creates})
-    if updates:
-        c.put(f"/robotMetrics/robots/{robot_id}", json={"metrics": updates})
-    return {"metrics": metrics_get(c, robot_id)}
+# Setting metrics is Backoffice-only: the company API has no write route for them (read-only here).
 
 
 # ── executions ────────────────────────────────────────────────────────────────

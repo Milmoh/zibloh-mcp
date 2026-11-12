@@ -16,7 +16,7 @@ from zibloh.client import ApiError, Client
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Build, deploy and run Zibloh robots.")
 robots_app = typer.Typer(no_args_is_help=True, help="Robots: create, deploy, configure, run.")
 options_app = typer.Typer(no_args_is_help=True, help="Robot options (configuration).")
-metrics_app = typer.Typer(no_args_is_help=True, help="Time and money saved per run.")
+metrics_app = typer.Typer(no_args_is_help=True, help="Time and money saved per run (read-only; set in the Backoffice).")
 executions_app = typer.Typer(no_args_is_help=True, help="Executions: status, logs, cancel.")
 robot_secrets_app = typer.Typer(no_args_is_help=True, help="Secrets bound to a robot.")
 secrets_app = typer.Typer(no_args_is_help=True, help="Company secrets (values are never shown).")
@@ -430,14 +430,7 @@ def metrics_get(ctx: typer.Context, robot_id: str, profile: Optional[str] = Prof
          lambda rows: _table(rows, ["metric_type", "name", "value", "default"]))
 
 
-@metrics_app.command("set")
-def metrics_set(ctx: typer.Context, robot_id: str,
-                minutes: Optional[float] = typer.Option(None, "--minutes", help="Minutes saved."),
-                euros: Optional[float] = typer.Option(None, "--euros", help="Euros saved."),
-                scope: str = typer.Option("execution", "--scope", help="execution (per run) or process (per processed unit)."),
-                profile: Optional[str] = ProfileOpt, json_out: bool = JsonOpt):
-    """Set minutes/euros saved per run or per processed unit."""
-    _run(ctx, profile, json_out, lambda c: ops.metrics_set(c, robot_id, minutes, euros, scope))
+# No `metrics set`: saved-time/money metrics are configured by Zibloh in the Backoffice.
 
 
 # ── executions ────────────────────────────────────────────────────────────────
