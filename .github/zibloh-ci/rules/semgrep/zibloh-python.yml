@@ -1,0 +1,40 @@
+# Zibloh-specific rules, on top of the Semgrep registry packs.
+# Severity ERROR blocks a prod deploy (POLICY.md §2); WARNING/INFO are reported only.
+rules:
+  - id: zibloh-sql-text-fstring
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SQL built with string formatting passed to SQLAlchemy. Use bound parameters
+      (text("... :name").bindparams(...)) or the ORM, which also keeps the multi-tenant
+      company filter in effect.
+    patterns:
+      - pattern-either:
+          - pattern: sqlalchemy.text(f"...")
+          - pattern: sqlalchemy.text("..." % ...)
+          - pattern: sqlalchemy.text("...".format(...))
+          - pattern: sqlalchemy.text("..." + ...)
+          - pattern: $DB.execute(f"...", ...)
+          - pattern: $DB.execute("..." % ..., ...)
+          - pattern: $DB.execute("...".format(...), ...)
+
+  - id: zibloh-jwt-decode-without-verification
+    languages: [python]
+    severity: ERROR
+    message: JWT decoded without verifying its signature. Tokens must always be verified.
+    pattern-either:
+      - pattern: |
+          jwt.decode(..., options={..., "verify_signature": False, ...}, ...)
+      - pattern: |
+          jose.jwt.decode(..., options={..., "verify_signature": False, ...}, ...)
+
+  - id: zibloh-tls-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: TLS certificate verification disabled. Fix the trust store instead.
+    pattern-either:
+      - pattern: requests.$M(..., verify=False, ...)
+      - pattern: httpx.$M(..., verify=False, ...)
+      - pattern: httpx.Client(..., verify=False, ...)
+      - pattern: httpx.AsyncClient(..., verify=False, ...)
+      - pattern: ssl._create_unverified_context(...)

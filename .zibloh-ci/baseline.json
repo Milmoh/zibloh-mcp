@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "created": "2026-11-25",
+  "fingerprints": {
+    "08611ee6529fd97e19f5": {
+      "tool": "gitleaks",
+      "rule": "aws-access-token",
+      "path": "tests/test_packaging.py",
+      "line": 45,
+      "severity": "SECRET"
+    },
+    "5ad8b4a83658f8a3e56f": {
+      "tool": "osv",
+      "rule": "GHSA-82r6-8w77-94w6",
+      "path": "src/zibloh/templates/basic/requirements.txt",
+      "line": 0,
+      "severity": "CRITICAL"
+    },
+    "b3c13f4161ce5cd02f3c": {
+      "tool": "gitleaks",
+      "rule": "generic-api-key",
+      "path": "tests/test_profiles.py",
+      "line": 13,
+      "severity": "SECRET"
+    },
+    "e94b84129157023c06d4": {
+      "tool": "osv",
+      "rule": "GHSA-6q48-6c7w-9gw2",
+      "path": "src/zibloh/templates/basic/requirements.txt",
+      "line": 0,
+      "severity": "CRITICAL"
+    }
+  }
+}
