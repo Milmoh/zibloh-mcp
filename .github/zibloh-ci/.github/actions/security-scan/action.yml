@@ -1,0 +1,83 @@
+name: zibloh-ci security scan
+description: Runs gitleaks, Semgrep, Bandit, osv-scanner and Trivy config, then the zibloh-ci gate.
+inputs:
+  path:
+    description: Directory to scan (relative to the workspace).
+    default: "."
+  exclude:
+    description: Extra comma-separated paths to exclude from SAST/IaC, relative to path.
+    default: ""
+  gitleaks-mode:
+    description: "Override: full | range | dir. Default: range on PRs and pushes, full otherwise."
+    default: ""
+  artifact-name:
+    description: Name of the report artifact.
+    default: security-report
+runs:
+  using: composite
+  steps:
+    # hashFiles() only reads the caller's workspace, not the action's own files: hash them here.
+    - name: Tool cache key
+      id: key
+      shell: bash
+      run: |
+        h=$(cat "$GITHUB_ACTION_PATH/../../../scanner/scan.sh" "$GITHUB_ACTION_PATH/../../../scanner/requirements.txt" | sha256sum | cut -c1-16)
+        echo "key=zibloh-ci-tools-${RUNNER_OS}-$h" >> "$GITHUB_OUTPUT"
+
+    - name: Cache scanner tools
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/zibloh-ci
+        key: ${{ steps.key.outputs.key }}
+
+    - name: Select gitleaks range
+      id: mode
+      shell: bash
+      env:
+        OVERRIDE: ${{ inputs.gitleaks-mode }}
+        EVENT: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+        PUSH_AFTER: ${{ github.event.after }}
+      run: |
+        mode=full; range=""
+        if [ -n "$OVERRIDE" ]; then
+          mode="$OVERRIDE"
+        elif [ "$EVENT" = "pull_request" ] && [ -n "$PR_BASE" ]; then
+          mode=range; range="$PR_BASE..$PR_HEAD"
+        elif [ "$EVENT" = "push" ] && [ -n "$PUSH_BEFORE" ] && ! [[ "$PUSH_BEFORE" =~ ^0+$ ]] \
+             && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+          mode=range; range="$PUSH_BEFORE..$PUSH_AFTER"
+        fi
+        echo "mode=$mode" >> "$GITHUB_OUTPUT"
+        echo "range=$range" >> "$GITHUB_OUTPUT"
+        echo "gitleaks: $mode $range"
+
+    - name: Scan
+      shell: bash
+      env:
+        ZCI_TARGET: ${{ inputs.path }}
+        ZCI_OUT: ${{ runner.temp }}/zci-out
+        ZCI_EXCLUDE: ${{ inputs.exclude }}
+        ZCI_GITLEAKS_MODE: ${{ steps.mode.outputs.mode }}
+        ZCI_GITLEAKS_RANGE: ${{ steps.mode.outputs.range }}
+      run: bash "$GITHUB_ACTION_PATH/../../../scanner/scan.sh"
+
+    - name: Gate
+      shell: bash
+      env:
+        TARGET: ${{ inputs.path }}
+      run: |
+        VENV=$(ls -d ~/.cache/zibloh-ci/venv-* | head -1)
+        "$VENV/bin/python" "$GITHUB_ACTION_PATH/../../../scanner/gate.py" \
+          --results "$RUNNER_TEMP/zci-out" --repo "$TARGET" --report "$RUNNER_TEMP/zci-out/security-report.json"
+
+    - name: Upload report
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/zci-out/
+        retention-days: 400
+        if-no-files-found: warn

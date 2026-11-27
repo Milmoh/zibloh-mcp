@@ -1,0 +1,32 @@
+# Security gate: gitleaks, Semgrep, Bandit, osv-scanner, Trivy config.
+# This repo is public, so it can't call Milmoh's private zibloh-ci workflows: it runs a vendored copy
+# in .github/zibloh-ci/ (regenerated from a zibloh-ci release, see its VERSION; do not edit by hand).
+# Findings: fix them, or add a justified exception to .zibloh-ci/exceptions.yml.
+# GitHub secret scanning + push protection and CodeQL are also enabled on this repo.
+name: security
+on:
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: "23 6 * * 1"   # weekly: new CVEs in unchanged code, full-history secret scan
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gate:
+    name: security / gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/zibloh-ci/.github/actions/security-scan
+        with:
+          # the vendored scanner's own pins (Semgrep's transitive deps) are CI tooling, not this product
+          exclude: .github/zibloh-ci

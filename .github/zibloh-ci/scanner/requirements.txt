@@ -1,0 +1,3 @@
+semgrep==1.184.0
+bandit==1.9.4
+PyYAML==6.0.3
